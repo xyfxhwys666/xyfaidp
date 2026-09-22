@@ -1,377 +1,56 @@
-<!-- github-markdown.md -->
-
-<div align="center">
-
-# 优探乐享生活 · AI 本地生活服务平台
-
-<p>
-  一个从 0 到 1 自主设计与开发的本地生活服务平台。<br/>
-  覆盖探店笔记、附近好店、优惠券秒杀等完整业务链路，并通过独立 Sidecar AI 子服务把大模型能力深度融入业务。
-</p>
-
-<p>
-  <img src="https://img.shields.io/badge/Spring%20Boot-2.3.12-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
-  <img src="https://img.shields.io/badge/Java-8%20%7C%2017-E76F00?style=for-the-badge&logo=openjdk&logoColor=white" />
-  <img src="https://img.shields.io/badge/Spring%20AI-1.0.0-0EA5E9?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Redis-Cache%20%26%20GEO-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
-  <img src="https://img.shields.io/badge/RabbitMQ-Async%20Seckill-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white" />
-</p>
+# 优探乐享生活
 
-<p>
-  <img src="https://img.shields.io/badge/Architecture-Sidecar%20AI-2563EB?style=flat-square" />
-  <img src="https://img.shields.io/badge/Model-DashScope-7C3AED?style=flat-square" />
-  <img src="https://img.shields.io/badge/Frontend-Nginx%20Static-14B8A6?style=flat-square" />
-  <img src="https://img.shields.io/badge/Database-MySQL-F59E0B?style=flat-square" />
-</p>
-
-</div>
+一个本地生活探索平台。用户可以在这里查找附近的店铺、看真实的探店笔记、领取并抢购优惠券。平台的特别之处在于把大模型融入了日常使用链路，能用自然语言帮用户找店，也能自动整理店铺口碑、识别笔记风险。
 
----
+## 这个平台做什么
 
-## 项目简介
+找店不需要在筛选条件里一个个勾。用户直接说出自己的想法，比如“想吃清淡点的”“附近有没有能坐下喝茶的地方”，系统先理解意图，再结合位置检索附近店铺，最后由模型重新排序并给出每家店的推荐理由。
 
-优探乐享生活是一个面向本地生活场景的综合服务平台，目标是让用户用一句自然语言就能找到附近合适的店，也能通过真实探店笔记了解一家店的真实口碑。
+每家店铺的详情页有一份自动生成的口碑总结。它来自用户发布的探店笔记，系统先把笔记分组提炼，再聚合成一份包含高频亮点和独有特色的总结。笔记有更新时，旧总结会通过指纹校验自动失效。
 
-平台在设计之初就把大模型能力作为一等公民，但没有让前端直接调用模型，也没有把模型 SDK 塞进核心业务服务，而是采用 Sidecar 架构独立部署 AI 子服务：
+发布笔记时有一道内容安全检查。发笔记页面会先给用户即时提示，后端保存前还会再强制校验一次，识别广告引流、联系方式、隐私信息、违禁内容和人身攻击等问题。模型不可用时退回本地规则，检查不会中断。
 
-- 主业务服务负责数据检索、Redis 缓存、GEO 搜索、业务规则与接口编排，基于 `Spring Boot 2.3 + JDK 8`，稳定优先
-- AI 子服务负责意图解析、分段总结、重排、推荐理由生成与风控判断，基于 `Spring Boot 3.3 + JDK 17 + Spring AI`，独立演进、可随时切换模型供应商
-- 模型超时或不可用时，主服务与 AI 服务两侧都有本地规则兜底，主链路不中断
+其余的基础功能包括短信验证码登录、店铺分类浏览、附近店铺检索、笔记点赞与滚动分页、用户关注与共同关注、优惠券领取与秒杀、图片上传。
 
-当前仓库包含：
+## 为什么分成两个后端服务
 
-1. 主业务后端：`dianping-nginx-1.18.0`
-2. 前端静态页面与 Nginx：`dianping-nginx-1.18.0/nginx-1.18.0 dianping`
-3. AI 子服务：`hmdp-ai-service`
-4. 一键初始化数据库脚本：`sql/open-source-full-init.sql`
-
-（如果项目对你有帮助，可以给个 star 吗？😻😻😻🥰🥰🥰）
-
----
-
-## 功能全景
-
-### 业务模块
-
-- 手机号 + 短信验证码登录，基于 Redis 的双拦截器会话刷新
-- 商户分类、商户详情、附近商户（Redis GEO 检索 + 数据库兜底）
-- 探店笔记发布、点赞、按时间滚动分页、热门榜单
-- 用户关注 / 取关、共同关注、关注信息流
-- 优惠券领取、优惠券秒杀下单
-- 图片上传与 Nginx 静态托管
-
-### 三大 AI 场景
-
-<table>
-  <tr>
-    <td width="50%">
-      <strong>AI 店铺口碑总结</strong><br/>
-      按店铺聚合探店笔记，分段摘要后再聚合为完整口碑，支持指纹失效与多级缓存。
-    </td>
-    <td width="50%">
-      <strong>AI 探店助手</strong><br/>
-      自然语言表达需求，结合 5km 范围、店铺简介、口碑与距离给出个性化推荐。
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <strong>AI 笔记质检与风控</strong><br/>
-      识别广告引流、联系方式、隐私泄露、违法违禁、人身攻击等风险内容。
-    </td>
-    <td width="50%">
-      <strong>双层兜底设计</strong><br/>
-      模型失败时，主服务与 AI 服务都可回退到本地规则，链路不中断。
-    </td>
-  </tr>
-</table>
-
----
-
-## 架构设计
-
-整体调用链路：
-
-```mermaid
-flowchart LR
-    U["用户 / 前端页面"] --> N["Nginx<br/>静态托管 + 反向代理"]
-    N --> M["主业务服务<br/>Spring Boot 2.3 + JDK 8"]
-    M --> R["Redis<br/>缓存 / GEO / 热点数据"]
-    M --> D["MySQL<br/>业务数据"]
-    M --> Q["RabbitMQ<br/>秒杀异步下单"]
-    M --> A["AI 子服务<br/>Spring Boot 3.3 + JDK 17 + Spring AI"]
-    A --> L["DashScope / 大模型能力"]
-```
-
-AI 子服务独立拆分的原因：
-
-1. 核心业务服务保持 `Spring Boot 2.3 + JDK 8` 技术底座，不为模型 SDK 做整体升级
-2. AI 子服务单独使用 `Spring Boot 3.3 + JDK 17 + Spring AI`，迭代节奏独立
-3. 大模型供应商可独立切换，不影响主业务
-4. 模型超时或不可用时，可在主服务和 AI 服务两侧同时兜底
-
-API Key 通过环境变量读取，不提交到仓库。
-
----
-
-## 技术栈
-
-### 主业务服务
-
-- Spring Boot 2.3.12 / Java 8
-- MyBatis-Plus
-- MySQL
-- Redis、Redisson
-- RabbitMQ
-- Nginx 静态托管 + 反向代理
-
-### AI 子服务
-
-- Spring Boot 3.3.5 / Java 17
-- Spring AI 1.0.0
-- 阿里云 DashScope 模型接入
-
----
-
-## 仓库结构
-
-```text
-.
-├─ README.md
-├─ 项目理解文档.md
-├─ sql/
-│  └─ open-source-full-init.sql
-├─ dianping-nginx-1.18.0/
-│  ├─ pom.xml
-│  ├─ src/main/java/com/hmdp
-│  ├─ src/main/resources/application.yaml
-│  ├─ src/main/resources/db/
-│  └─ nginx-1.18.0 dianping/
-│     ├─ conf/nginx.conf
-│     └─ html/
-└─ hmdp-ai-service/
-   ├─ pom.xml
-   ├─ src/main/java/com/hmdp/ai
-   └─ src/main/resources/application.yaml
-```
-
----
-
-## 核心设计
-
-### 1. AI 店铺口碑总结
-
-- 数据来源：`tb_blog`，按店铺聚合探店笔记
-- 处理方式：先做 chunk summary（分段摘要），再做 final summary（聚合总结）
-- 缓存策略：分组缓存 + 总结缓存 + 指纹校验（博客变化时缓存自动失效）
-- 模型不可用时回退到本地规则版总结
-- 对外接口：`GET /ai/shop/{shopId}/summary`
-- 页面入口：`shop-detail.html`
+平台包含两个独立部署的后端。
 
-### 2. AI 探店助手
+主业务服务承载全部业务逻辑，使用 Java 8 与 Spring Boot 2.3，数据访问用 MyBatis-Plus，缓存和附近检索用 Redis，秒杀异步下单用 RabbitMQ，静态页面由 Nginx 托管并反向代理接口。这个服务追求稳定，不直接依赖任何大模型 SDK。
 
-- 输入：用户自然语言需求 + 当前坐标 + 当前店铺类型
-- 意图解析：大模型提取意图摘要、类型关键词、包含 / 排除关键词
-- 候选召回：Redis GEO 优先（5km 范围），查不到时 DB 兜底
-- 排序：本地规则粗排 → 大模型重排 → 大模型生成推荐理由
-- 关键上下文：`tb_shop.shop_desc` 店铺简介字段，承载口味、环境、服务等模型可理解的经营信息
-- 结果缓存：相同需求短时间内直接复用推荐结果
-- 对外接口：`POST /ai/assistant/recommend`
-- 页面入口：`shop-list.html`
+AI 服务单独承载模型能力，使用 Java 17、Spring Boot 3.3 与 Spring AI，通过 HTTP 接口对主服务提供意图解析、摘要、重排、推荐理由和风控六类能力。它可以独立升级、独立替换模型供应商。当前接入的是阿里云 DashScope，密钥只从环境变量读取。
 
-### 3. AI 笔记质检与风控
+模型超时、返回异常或服务不可用时，AI 服务和主服务两侧都准备了本地规则兜底，用户侧功能不会直接报错。
 
-- 前端在发笔记页先做一次 AI 预检，即时反馈给用户
-- 后端 `POST /blog` 保存前再强制做一次 AI 风控校验（前端不是安全边界）
-- 识别范围：广告引流、联系方式泄露、隐私泄露、违禁违法、辱骂攻击、夸大营销
-- 模型不可用时走本地关键词规则兜底
-- 对外接口：`POST /ai/review/risk-check`
-- 页面入口：`blog-edit.html`
+## 目录长什么样
 
-### 4. 优惠券秒杀
+- dianping-nginx-1.18.0：主业务服务的全部代码、配置和 Nginx
+- hmdp-ai-service：独立 AI 服务
+- sql：数据库初始化脚本 open-source-full-init.sql
+- 项目理解文档.md：更完整的设计思路与实现细节说明
 
-- Redis + Lua 完成库存校验与一人一单判断的原子操作
-- 通过 RabbitMQ 异步投递订单消息，消费者结合 Redisson 锁与事务落库
-- 正常队列消费失败后进入死信队列兜底
-- 全局唯一订单号由 Redis 号段模式生成
+## 本地运行需要什么
 
----
+JDK 8 和 JDK 17 各一个，Maven 3.9 以上，MySQL 5.7 或 8，Redis 6 以上，RabbitMQ 3，Nginx 1.18。
 
-## 功能演示
+第一步初始化数据库，执行 sql 目录下的 open-source-full-init.sql。脚本会创建名为 hmdp 的数据库和全部表结构，加入店铺简介字段，并导入基础数据和一批用于 AI 演示的美食店铺与笔记样本。
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>AI 探店助手</strong><br/><br/>
-        <img src="docs/images/1.png" width="240" alt="AI 探店助手演示"/>
-      </td>
-      <td align="center">
-        <strong>AI 店铺口碑总结</strong><br/><br/>
-        <img src="docs/images/2.png" width="240" alt="AI 店铺口碑总结演示"/>
-      </td>
-      <td align="center">
-        <strong>笔记校验 / AI 风控</strong><br/><br/>
-        <img src="docs/images/3.png" width="240" alt="笔记校验演示"/>
-      </td>
-    </tr>
-  </table>
-</div>
+第二步检查主业务服务的配置文件 dianping-nginx-1.18.0/src/main/resources/application.yaml，按本机情况确认数据库、Redis、RabbitMQ 的地址与账号，AI 服务地址默认指向本机 8090。
 
-> 三张图片顺序分别对应：AI 探店助手、AI 店铺口碑总结、笔记校验。
+第三步配置 AI 服务需要的环境变量。Windows 下设置 DASHSCOPE_API_KEY 和 DASHSCOPE_MODEL，例如模型填 qwen-turbo-flash。需要改端口时设置 HMDP_AI_PORT。
 
----
+图片上传目录在 SystemConstants.java 中，改成自己机器上前端页面的 imgs 目录，否则上传的图片会落错位置。
 
-## 快速启动
+Nginx 监听 8080，把 /api 开头的请求转发到 8081 的主业务服务，因此页面统一通过 Nginx 访问。
 
-### 1. 环境准备
+## 启动顺序与端口
 
-- JDK 8（主业务服务）
-- JDK 17（AI 子服务）
-- Maven 3.9+
-- MySQL 5.7+ 或 8.x
-- Redis 6+
-- RabbitMQ 3.x
-- Nginx 1.18+
+先启动 MySQL、Redis、RabbitMQ，再启动 AI 服务，然后启动主业务服务，最后启动 Nginx。两个后端都可以用 mvn spring-boot:run 启动，Nginx 在其目录下执行 start nginx.exe。
 
-### 2. 初始化数据库
+启动完成后，页面入口是 http://127.0.0.1:8080 ，主业务服务在 8081，AI 服务在 8090。
 
-导入根目录 SQL：
+数据库初始化只覆盖 MySQL，Redis 中的数据在业务首次访问时自动回填。如果希望提前准备好附近检索和店铺缓存，可以在 IDE 中运行 DemoDataSeedRunner 完成预热。
 
-```text
-sql/open-source-full-init.sql
-```
+## 从哪里开始读代码
 
-脚本会完成：
-
-1. 创建 `hmdp` 数据库
-2. 创建完整业务表结构
-3. 创建 `tb_shop.shop_desc` 店铺简介字段
-4. 导入基础演示数据
-5. 额外导入 30 家美食类 AI 测试店铺
-6. 为这 30 家店铺生成 14 到 22 条探店笔记样本，并预置互动量用于 AI 演示
-
-### 3. 修改主业务服务配置
-
-文件：
-
-```text
-dianping-nginx-1.18.0/src/main/resources/application.yaml
-```
-
-按需确认：`server.port`、数据源、Redis、RabbitMQ 连接信息，以及 `hmdp.ai.base-url`（AI 子服务地址）。
-
-默认端口规划：
-
-- 主业务服务：`8081`
-- AI 子服务：`8090`
-
-### 4. 配置 AI 子服务
-
-文件：
-
-```text
-hmdp-ai-service/src/main/resources/application.yaml
-```
-
-模型配置从环境变量读取：
-
-```bash
-set DASHSCOPE_API_KEY=你的DashScope API Key
-set DASHSCOPE_MODEL=qwen-turbo-flash
-```
-
-如需改端口：
-
-```bash
-set HMDP_AI_PORT=8090
-```
-
-### 5. 修改图片上传目录
-
-文件：
-
-```text
-dianping-nginx-1.18.0/src/main/java/com/hmdp/utils/SystemConstants.java
-```
-
-将 `IMAGE_UPLOAD_DIR` 改成本机实际存在的前端 `imgs` 目录路径，否则图片上传会写入错误位置。
-
-### 6. 检查 Nginx 代理
-
-文件：
-
-```text
-dianping-nginx-1.18.0/nginx-1.18.0 dianping/conf/nginx.conf
-```
-
-默认约定：
-
-- Nginx 端口：`8080`
-- `/api/**` 反向代理到 `http://127.0.0.1:8081`
-
-前端请求基址为 `axios.defaults.baseURL = "/api"`，请通过 Nginx 访问页面。
-
-### 7. 启动顺序
-
-1. 启动 MySQL、Redis、RabbitMQ
-2. 导入 `sql/open-source-full-init.sql`
-3. 启动 AI 子服务
-4. 启动主业务服务
-5. 启动 Nginx
-
-启动命令：
-
-```bash
-# AI 子服务
-cd hmdp-ai-service
-mvn spring-boot:run
-
-# 主业务服务
-cd dianping-nginx-1.18.0
-mvn spring-boot:run
-
-# Nginx
-cd "dianping-nginx-1.18.0/nginx-1.18.0 dianping"
-start nginx.exe
-```
-
-访问地址：
-
-- 前端首页：`http://127.0.0.1:8080`
-- 主业务服务：`http://127.0.0.1:8081`
-- AI 子服务：`http://127.0.0.1:8090`
-
----
-
-## Redis 预热
-
-数据库初始化不会自动写入 Redis。平台提供两种方式保证 Redis 数据可用：
-
-1. 业务访问时按需回填
-2. 使用 `DemoDataSeedRunner` 提前预热 GEO 数据与店铺缓存并校验
-
-在 IDE 中运行 `DemoDataSeedRunner` 即可在导入 SQL 后把 GEO、店铺缓存等提前写入 Redis。
-
----
-
-## 关键代码入口
-
-### 主业务服务
-
-- AI 控制器：`dianping-nginx-1.18.0/src/main/java/com/hmdp/controller/AiController.java`
-- AI 编排核心：`dianping-nginx-1.18.0/src/main/java/com/hmdp/service/impl/AiServiceImpl.java`
-- AI 子服务客户端：`dianping-nginx-1.18.0/src/main/java/com/hmdp/ai/client/AiRemoteClientImpl.java`
-- Redis Key 常量：`dianping-nginx-1.18.0/src/main/java/com/hmdp/utils/RedisConstants.java`
-- 笔记发布风控拦截：`dianping-nginx-1.18.0/src/main/java/com/hmdp/controller/BlogController.java`
-- 秒杀下单：`dianping-nginx-1.18.0/src/main/java/com/hmdp/service/impl/VoucherOrderServiceImpl.java`
-
-### AI 子服务
-
-- 接口入口：`hmdp-ai-service/src/main/java/com/hmdp/ai/controller/InternalAiController.java`
-- 提示词与兜底实现：`hmdp-ai-service/src/main/java/com/hmdp/ai/service/AiOrchestrationService.java`
-
-### 前端
-
-- 店铺详情 AI 总结：`dianping-nginx-1.18.0/nginx-1.18.0 dianping/html/hmdp/shop-detail.html`
-- 店铺列表 AI 助手：`dianping-nginx-1.18.0/nginx-1.18.0 dianping/html/hmdp/shop-list.html`
-- 发笔记 AI 风控：`dianping-nginx-1.18.0/nginx-1.18.0 dianping/html/hmdp/blog-edit.html`
+业务侧的 AI 入口在 controller 目录的 AiController，核心编排在 service 实现层的 AiServiceImpl，调用 AI 服务的客户端在 ai/client 目录，Redis 的键定义在 utils 目录的 RedisConstants。AI 服务侧从 InternalAiController 进入，提示词与全部兜底逻辑集中在 AiOrchestrationService。
